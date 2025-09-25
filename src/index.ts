@@ -62,10 +62,12 @@ console.log("不存在字符串替换次数:", doc5.replaceAll("xyz", "abc")); /
 const doc6 = new DocumentModel("Single line");
 const singleLineRange = doc6.getLineRange(0);
 console.log("单行文档范围:", singleLineRange);
-console.log("单行内容:", doc6.getText().slice(
-  doc6.positionToOffset(singleLineRange.start),
-  doc6.positionToOffset(singleLineRange.end)
-));
+console.log(
+  "单行内容:",
+  doc6
+    .getText()
+    .slice(doc6.positionToOffset(singleLineRange.start), doc6.positionToOffset(singleLineRange.end))
+);
 
 // 测试 getLineRange 错误处理
 try {

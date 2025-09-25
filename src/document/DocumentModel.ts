@@ -120,6 +120,10 @@ export class DocumentModel {
     return { start, end };
   }
 
+  // TODO: 新增方法 replaceAll(query: string, replacement: string): number。返回替换次数（全部替换，区分大小写即可）
+
+  // TODO: 新增方法 getLineRange(line: number): Range。返回整行的 [start, end) 范围
+
   /**
    * 归一化范围，保证 start <= end
    */

@@ -1,4 +1,4 @@
-import { DocumentModel, type Position, type Range } from "./document/DocumentModel.js";
+import { DocumentModel, type Position } from "./document/DocumentModel.js";
 
 // 演示：创建文档、插入/替换、位置与偏移转换
 const doc = new DocumentModel("Hello\nWorld");

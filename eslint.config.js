@@ -10,7 +10,7 @@ export default [
 
   // Ignore patterns (equivalent to ignorePatterns in legacy config)
   {
-    ignores: ["dist/**/*", "node_modules/**/*"],
+    ignores: ["dist/**/*", "node_modules/**/*", "html/**/*", "coverage/**/*"],
   },
 
   // Base ESLint recommended rules

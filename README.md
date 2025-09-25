@@ -8,6 +8,57 @@
 - `npm run typecheck` 执行 TypeScript 类型检查
 - `npm run lint` 代码规范检查（ESLint）
 - `npm run format` 使用 Prettier 格式化
+- `npm run test` 运行测试套件（监听模式）
+- `npm run test:run` 运行测试套件（单次运行）
+- `npm run test:watch` 运行测试套件（监听模式）
+- `npm run test:ui` 运行测试套件（UI界面）
+- `npm run test:coverage` 运行测试并生成覆盖率报告
+
+## 测试
+
+本项目使用 [Vitest](https://vitest.dev/) 作为测试框架，提供快速、现代的测试体验。
+
+### 测试文件结构
+
+```
+test/
+├── DocumentModel.test.ts    # DocumentModel 类的单元测试
+└── ...                      # 其他测试文件
+```
+
+### 运行测试
+
+```bash
+# 运行所有测试（监听模式）
+npm test
+
+# 运行所有测试（单次运行）
+npm run test:run
+
+# 运行测试并生成覆盖率报告
+npm run test:coverage
+
+# 使用 UI 界面运行测试
+npm run test:ui
+```
+
+### 测试覆盖率
+
+当前 DocumentModel 类的测试覆盖率达到 98%+，包括：
+
+- 基本文本操作测试（创建、获取、设置文本等）
+- 位置与偏移转换测试
+- 文本编辑操作测试（插入、删除、替换）
+- 文本查找和替换测试
+- 行范围获取测试
+- 边界情况和错误处理测试
+
+### 测试原则
+
+- 每个公共方法都应该有对应的测试
+- 包含正常情况和边界情况的测试
+- 使用中文测试描述，便于理解
+- 测试应该独立且可重复运行
 
 ## 推荐提交信息格式
 

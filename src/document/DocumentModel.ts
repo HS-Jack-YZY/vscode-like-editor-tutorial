@@ -120,9 +120,54 @@ export class DocumentModel {
     return { start, end };
   }
 
-  // TODO: 新增方法 replaceAll(query: string, replacement: string): number。返回替换次数（全部替换，区分大小写即可）
+  /**
+   * 替换所有匹配的子串（区分大小写）
+   * @param query 要替换的子串
+   * @param replacement 替换后的文本
+   * @returns 替换的次数
+   */
+  replaceAll(query: string, replacement: string): number {
+    if (query.length === 0) return 0;
+    
+    let count = 0;
+    let newText = this.text;
+    let startIndex = 0;
+    
+    while (true) {
+      const index = newText.indexOf(query, startIndex);
+      if (index === -1) break;
+      
+      newText = newText.slice(0, index) + replacement + newText.slice(index + query.length);
+      count++;
+      startIndex = index + replacement.length;
+    }
+    
+    this.text = newText;
+    return count;
+  }
 
-  // TODO: 新增方法 getLineRange(line: number): Range。返回整行的 [start, end) 范围
+  /**
+   * 获取指定行的完整范围（半开区间：[start, end)）
+   * 包含行末换行符（如果存在）
+   * @param line 行号（0-based）
+   * @returns 整行的范围
+   */
+  getLineRange(line: number): Range {
+    const lines = this.text.split("\n");
+    if (line < 0 || line >= lines.length) {
+      throw new RangeError(`Line ${line} is out of range [0, ${lines.length - 1}]`);
+    }
+    
+    const start: Position = { line, column: 0 };
+    const end: Position = { line: line + 1, column: 0 };
+    
+    // 如果是最后一行且没有结尾换行符，end 应该是该行的末尾
+    if (line === lines.length - 1 && !this.text.endsWith("\n")) {
+      return { start, end: { line, column: lines[line]!.length } };
+    }
+    
+    return { start, end };
+  }
 
   /**
    * 归一化范围，保证 start <= end

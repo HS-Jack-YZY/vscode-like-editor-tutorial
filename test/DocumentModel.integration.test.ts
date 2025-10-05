@@ -78,7 +78,7 @@ describe("DocumentModel Integration Tests", () => {
 const result = hello();`);
 
     // 重命名函数
-    let count = doc.replaceAll("hello", "greet");
+    const count = doc.replaceAll("hello", "greet");
     expect(count).toBe(2);
     
     // 更新字符串内容

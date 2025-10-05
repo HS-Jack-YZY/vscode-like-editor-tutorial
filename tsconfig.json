@@ -12,7 +12,8 @@
     "lib": ["ES2022", "DOM"],
     "outDir": "dist",
     "types": ["node"],
-    "allowJs": false
+    "allowJs": false,
+    "jsx": "react-jsx"
   },
   "include": ["src"]
 }

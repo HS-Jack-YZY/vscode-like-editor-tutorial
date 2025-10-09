@@ -2,6 +2,19 @@
 
 本仓库用于学习 TypeScript / React / Electron，并最终做出一个类 VSCode 的编辑器工具。
 
+## 📖 文档
+
+- **[技术指南（TECHNICAL_GUIDE.md）](./TECHNICAL_GUIDE.md)** - 详细的技术架构文档
+  - 项目架构总览和分层设计
+  - 核心模块（DocumentModel）详解
+  - React 层架构（Context、Hooks、Components）
+  - 数据流和状态管理机制
+  - 为什么需要多层嵌套
+  - 每个文件和函数的作用说明
+  - 常见开发场景示例
+  - 调试技巧和性能优化
+  - 测试策略
+
 ## 开发脚本
 
 - `npm run dev` 本地运行示例（tsx 直接运行 TypeScript）

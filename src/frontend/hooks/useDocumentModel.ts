@@ -51,13 +51,13 @@ export type UseDocumentModelResult = {
  * ```
  */
 export function useDocumentModel(): UseDocumentModelResult {
-  const { doc, forceUpdate } = useDocument();
+  const { doc, version, forceUpdate } = useDocument();
 
   // Wrap getText for convenience
   const getText = useCallback(() => doc.getText(), [doc]);
 
   // Compute line count (will update when version changes via forceUpdate)
-  const lineCount = useMemo(() => doc.getLineCount(), [doc]);
+  const lineCount = useMemo(() => doc.getLineCount(), [doc, version]);
 
   // Mutation function: insert text at position
   const insert = useCallback(

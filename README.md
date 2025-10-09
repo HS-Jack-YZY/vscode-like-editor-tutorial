@@ -4,10 +4,24 @@
 
 ## 开发脚本
 
-- `npm run dev` 本地运行示例（tsx 直接运行 TypeScript）
+### 运行应用
+
+- `npm run dev:node` 运行 Node.js 示例（展示 DocumentModel 基础用法）
+- `npm run dev:web` 运行 Web 编辑器（Vite 开发服务器，访问 http://localhost:5173）
+
+### 构建
+
+- `npm run build:node` 编译 TypeScript 代码
+- `npm run build:web` 构建 Web 应用
+
+### 代码质量
+
 - `npm run typecheck` 执行 TypeScript 类型检查
 - `npm run lint` 代码规范检查（ESLint）
 - `npm run format` 使用 Prettier 格式化
+
+### 测试
+
 - `npm run test` 运行测试套件（监听模式）
 - `npm run test:run` 运行测试套件（单次运行）
 - `npm run test:watch` 运行测试套件（监听模式）
@@ -68,8 +82,63 @@ npm run test:ui
 - `refactor: ...` 重构
 - `test: ...` 测试相关
 
+## 项目结构
+
+```
+src/
+├── document/
+│   └── DocumentModel.ts         # 文档模型核心类
+├── frontend/
+│   ├── components/
+│   │   ├── Editor.tsx           # 主编辑器组件（带行号和高亮）
+│   │   ├── EditorExample.tsx    # Hook 使用示例
+│   │   └── DocumentViewer.tsx   # 文档查看器
+│   ├── context/
+│   │   └── DocumentContext.tsx  # React Context 状态管理
+│   ├── hooks/
+│   │   ├── useDocumentModel.ts  # 文档操作 Hook
+│   │   └── index.ts
+│   ├── App.tsx                  # 应用入口组件
+│   └── main.tsx                 # React 应用挂载点
+├── index.ts                     # Node.js 示例程序
+test/
+├── DocumentModel.test.ts        # DocumentModel 单元测试
+├── DocumentModel.integration.test.ts  # 集成测试
+└── useDocumentModel.test.ts     # Hook 测试
+```
+
+## 核心功能
+
+### DocumentModel
+
+文本编辑器的核心数据结构，提供：
+
+- 基本文本操作（获取、设置、获取行数、获取指定行）
+- 位置与偏移量转换（Position ↔ Offset）
+- 文本编辑操作（插入、删除、替换范围）
+- 文本查找与替换（查找第一个、查找所有、全部替换）
+- 行范围操作
+
+### React 前端
+
+#### Editor 组件
+
+类 VSCode 的编辑器界面，包含：
+
+- 左侧行号栏（Gutter），显示行号
+- 当前行高亮显示
+- 暗色主题样式
+- 与 DocumentModel 实时同步
+
+#### Context + Hooks 架构
+
+- `DocumentContext`：提供单例 DocumentModel 实例和版本管理
+- `useDocument`：访问 Context 的基础 Hook
+- `useDocumentModel`：封装文档操作的高级 Hook，自动触发 UI 更新
+
 ## 学习阶段
 
-- 0：环境、仓库、Copilot 工作流
-- 1：TypeScript 核心与文档模型（本阶段）
-- 后续：React、Electron、Monaco 等
+- ✅ 阶段 0：环境、仓库、Copilot 工作流
+- ✅ 阶段 1：TypeScript 核心与文档模型
+- ✅ 阶段 2：React 前端基础架构
+- 🚧 后续：Electron 桌面应用、Monaco 编辑器集成等

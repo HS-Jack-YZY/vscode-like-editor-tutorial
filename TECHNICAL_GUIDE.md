@@ -57,6 +57,7 @@
 4. **UI 层（Components）**：专注于界面展示和用户交互
 
 这种分层让代码：
+
 - **易于测试**：核心逻辑不依赖 React，可以独立测试
 - **易于复用**：DocumentModel 可以在 Node.js、Electron 等环境使用
 - **易于维护**：每层职责清晰，修改某层不会影响其他层
@@ -67,10 +68,13 @@
 ## 核心数据模型：DocumentModel
 
 ### 文件位置
+
 `src/document/DocumentModel.ts`
 
 ### 作用
+
 DocumentModel 是整个编辑器的核心数据结构，负责：
+
 - 存储文本内容
 - 提供文本操作方法（插入、删除、替换、查找）
 - 提供位置和偏移量的相互转换
@@ -78,6 +82,7 @@ DocumentModel 是整个编辑器的核心数据结构，负责：
 ### 核心概念
 
 #### 1. Position（位置）
+
 ```typescript
 export type Position = {
   line: number;    // 行号，从 0 开始
@@ -86,10 +91,12 @@ export type Position = {
 ```
 
 **为什么用 Position？**
+
 - 编辑器需要以"行列"方式定位文本（用户友好）
 - 便于实现行号显示、光标定位等功能
 
 #### 2. Range（范围）
+
 ```typescript
 export type Range = {
   start: Position;
@@ -98,6 +105,7 @@ export type Range = {
 ```
 
 **为什么用 Range？**
+
 - 表示一段文本区域（如选中的文本）
 - 用于删除、替换等操作
 - **半开区间约定**：包含 start，不包含 end（符合编程习惯）
@@ -109,6 +117,7 @@ export type Range = {
 **为什么需要这两个转换函数？**
 
 在编辑器中，有两种表示文本位置的方式：
+
 1. **Position（行列）**：用户友好，易于理解（"第 3 行第 5 列"）
 2. **Offset（偏移量）**：计算机友好，易于字符串操作（"第 42 个字符"）
 
@@ -122,12 +131,14 @@ doc.offsetToPosition(8); // => {line: 1, column: 2}
 ```
 
 **使用场景：**
+
 - 用户点击编辑器 → textarea 返回 offset → 转换为 Position → 显示行号
 - 用户选择"替换第 3 行" → Position → 转换为 offset → 执行字符串操作
 
 ##### insert()、deleteRange()、replaceRange()
 
 **为什么提供这三个方法？**
+
 - `insert()`：在光标位置插入文本（最常用）
 - `deleteRange()`：删除选中区域
 - `replaceRange()`：替换选中区域（等于 delete + insert，但更高效）
@@ -137,6 +148,7 @@ doc.offsetToPosition(8); // => {line: 1, column: 2}
 ##### replaceAll()
 
 **为什么单独提供 replaceAll()？**
+
 - "查找并替换全部"是常用功能
 - 单独实现比多次调用 `replaceRange()` 更高效
 - 返回替换次数，便于用户反馈
@@ -144,6 +156,7 @@ doc.offsetToPosition(8); // => {line: 1, column: 2}
 ##### getLineRange()
 
 **为什么需要 getLineRange()？**
+
 - 获取某一行的完整范围（包括换行符）
 - 用于实现"删除整行"、"复制整行"等功能
 - 处理边界情况（最后一行可能没有换行符）
@@ -153,6 +166,7 @@ doc.offsetToPosition(8); // => {line: 1, column: 2}
 **关键原则：核心业务逻辑与 UI 框架解耦**
 
 优点：
+
 1. **可移植性**：DocumentModel 可以在 Node.js、Electron、Web Worker 中使用
 2. **可测试性**：不需要 React 测试工具，直接测试即可（见 `test/DocumentModel.test.ts`）
 3. **性能**：不需要 React 的重渲染机制，操作更快
@@ -165,10 +179,13 @@ doc.offsetToPosition(8); // => {line: 1, column: 2}
 ### 1. Context 层：DocumentContext
 
 #### 文件位置
+
 `src/frontend/context/DocumentContext.tsx`
 
 #### 作用
+
 DocumentContext 是 React 和 DocumentModel 之间的桥梁，负责：
+
 1. **管理 DocumentModel 单例**：整个应用只有一个 DocumentModel 实例
 2. **提供版本号（version）**：用于触发 React 重新渲染
 3. **提供更新函数（forceUpdate）**：修改文档后通知 React 更新 UI
@@ -178,6 +195,7 @@ DocumentContext 是 React 和 DocumentModel 之间的桥梁，负责：
 ##### 为什么需要 version？
 
 **React 的渲染机制问题：**
+
 ```typescript
 const [doc] = useState(() => new DocumentModel("Hello"));
 
@@ -191,6 +209,7 @@ setVersion(v => v + 1);  // 通知 React 数据变了
 ```
 
 **原因：**
+
 - DocumentModel 是一个普通的类实例，React 无法追踪其内部状态变化
 - React 只能追踪 `useState` 或 `useReducer` 的状态变化
 - 通过增加 `version` 数字，告诉 React "数据变了，请重新渲染"
@@ -290,9 +309,11 @@ export function useDocument(): DocumentContextValue {
 ### 2. Hooks 层：useDocumentModel
 
 #### 文件位置
+
 `src/frontend/hooks/useDocumentModel.ts`
 
 #### 作用
+
 封装常用的文档操作，提供更高级、更便利的 API。
 
 #### 为什么需要 useDocumentModel？
@@ -317,6 +338,7 @@ const handleInsert = () => {
 ```
 
 **优点：**
+
 1. **自动更新**：所有修改函数都自动调用 `forceUpdate()`
 2. **便利属性**：提供 `lineCount`、`getText` 等常用属性
 3. **简化代码**：减少样板代码，降低出错概率
@@ -367,10 +389,13 @@ const insert = useCallback(
 #### Editor 组件
 
 ##### 文件位置
+
 `src/frontend/components/Editor.tsx`
 
 ##### 作用
+
 主编辑器组件，提供类似 VSCode 的编辑界面：
+
 - 行号显示
 - 当前行高亮
 - 文本编辑区
@@ -389,6 +414,7 @@ const { setText, getText } = useDocumentModel();
 ```
 
 **数据流：**
+
 1. 用户输入 → `onChange` 事件触发
 2. 调用 `setText()` → 更新 DocumentModel → 调用 `forceUpdate()`
 3. `version` 增加 → React 重新渲染 → `getText()` 返回最新内容
@@ -419,6 +445,7 @@ const handleSelectionChange = () => {
 ```
 
 **为什么需要这样计算？**
+
 - `textarea.selectionStart` 返回的是 offset（偏移量）
 - 需要转换为行号才能高亮当前行
 - 简单粗暴的方法：数光标前有多少个换行符
@@ -426,9 +453,11 @@ const handleSelectionChange = () => {
 #### DocumentViewer 组件
 
 ##### 文件位置
+
 `src/frontend/components/DocumentViewer.tsx`
 
 ##### 作用
+
 展示文档内容和版本号，提供测试按钮。
 
 ```typescript
@@ -441,15 +470,18 @@ const { doc, version, setText } = useDocument();
 ```
 
 **为什么显示 version？**
+
 - 开发和调试时，直观看到文档更新次数
 - 验证 `forceUpdate` 机制是否正常工作
 
 #### EditorExample 组件
 
 ##### 文件位置
+
 `src/frontend/components/EditorExample.tsx`
 
 ##### 作用
+
 演示 `useDocumentModel` 各种功能的示例组件。
 
 ```typescript
@@ -462,6 +494,7 @@ const handleReplaceAll = () => {
 ```
 
 **为什么需要这个组件？**
+
 - 教学和演示用途
 - 测试各种文档操作功能
 - 帮助理解 API 使用方式
@@ -572,6 +605,7 @@ class DocumentModel {
 - 必须将 `version` 放在 React 的 state 中（`useState`）
 
 **正确做法：**
+
 ```typescript
 // ✅ version 在 React state 中
 const [version, setVersion] = useState(0);
@@ -603,11 +637,13 @@ function DocumentViewer() {
 ```
 
 **问题：**
+
 - 每个组件都有自己的 DocumentModel 实例
 - 无法共享数据，Editor 的修改 DocumentViewer 看不到
 - 需要全局单例
 
 **正确做法：**
+
 - 使用 Context 提供全局单例
 - 所有组件共享同一个 DocumentModel
 
@@ -625,6 +661,7 @@ insert({line: 0, column: 0}, "Hello");  // 自动 forceUpdate
 ```
 
 **原因：**
+
 - **封装性**：隐藏 `forceUpdate` 细节，降低使用难度
 - **安全性**：防止忘记调用 `forceUpdate` 导致界面不更新
 - **便利性**：提供常用属性（`lineCount`、`getText`）
@@ -655,11 +692,13 @@ insert({line: 0, column: 0}, "Hello");  // 自动 forceUpdate
 #### Q4: 为什么不用 Redux 或其他状态管理库？
 
 **当前架构的优势：**
+
 - **简单**：只需要一个 Context，无需学习额外的库
 - **轻量**：没有额外依赖，打包体积小
 - **够用**：对于文档编辑器，Context 完全足够
 
 **什么时候需要 Redux？**
+
 - 状态逻辑非常复杂（多个 reducer）
 - 需要时间旅行调试（记录每一步操作）
 - 需要中间件（如异步操作、日志记录）
@@ -675,11 +714,13 @@ insert({line: 0, column: 0}, "Hello");  // 自动 forceUpdate
 **作用：** 核心数据模型
 
 **为什么需要：**
+
 - 存储和操作文本数据
 - 提供位置和偏移量转换
 - 与 React 无关，可独立使用
 
 **不使用 React 的原因：**
+
 - 保持核心逻辑纯粹
 - 便于测试和移植
 - 可在非 React 环境使用
@@ -689,11 +730,13 @@ insert({line: 0, column: 0}, "Hello");  // 自动 forceUpdate
 **作用：** 连接 React 和 DocumentModel
 
 **为什么需要：**
+
 - 提供 DocumentModel 的全局单例
 - 管理 `version` 状态，触发 React 更新
 - 封装 `forceUpdate` 和 `setText` 方法
 
 **提供的接口：**
+
 ```typescript
 interface DocumentContextValue {
   doc: DocumentModel;       // 文档实例
@@ -708,11 +751,13 @@ interface DocumentContextValue {
 **作用：** 封装常用操作，提供便利 API
 
 **为什么需要：**
+
 - 自动调用 `forceUpdate()`，无需手动触发
 - 提供 `lineCount`、`getText` 等便利属性
 - 简化组件代码，降低出错概率
 
 **提供的接口：**
+
 ```typescript
 interface UseDocumentModelResult {
   doc: DocumentModel;
@@ -730,11 +775,13 @@ interface UseDocumentModelResult {
 **作用：** Hooks 的统一导出入口
 
 **为什么需要：**
+
 - 简化 import 路径
 - 便于管理和维护
 - 统一导出接口
 
 **使用示例：**
+
 ```typescript
 // ✅ 从 index.ts 导入
 import { useDocumentModel } from "../hooks/index.js";
@@ -748,12 +795,14 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** 主编辑器组件
 
 **功能：**
+
 - 显示行号
 - 高亮当前行
 - 提供文本编辑区
 - 追踪光标位置
 
 **为什么需要：**
+
 - 提供类似 VSCode 的编辑体验
 - 核心 UI 组件
 
@@ -762,6 +811,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** 展示文档内容和版本号
 
 **为什么需要：**
+
 - 调试工具，查看文档状态
 - 演示 Context 和 Hook 的使用
 
@@ -770,6 +820,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** 演示 useDocumentModel 的各种功能
 
 **为什么需要：**
+
 - 教学和演示
 - 测试各种 API
 - 帮助理解使用方式
@@ -779,6 +830,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** 根组件，组织整体布局
 
 **为什么需要：**
+
 - 包裹 DocumentProvider，提供全局状态
 - 组织各个子组件
 - 定义整体布局结构
@@ -788,6 +840,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** Web 应用入口
 
 **为什么需要：**
+
 - Vite 的入口文件
 - 创建 React Root
 - 渲染整个应用
@@ -797,6 +850,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** Node.js 演示入口
 
 **为什么需要：**
+
 - 演示 DocumentModel 在 Node.js 环境的使用
 - 说明核心逻辑不依赖 React
 - 提供命令行测试（`npm run dev:node`）
@@ -806,6 +860,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** Web 应用的 HTML 入口
 
 **为什么需要：**
+
 - 提供 `<div id="root"></div>` 挂载点
 - 加载 `main.tsx` 启动应用
 - Vite 自动处理模块化
@@ -815,6 +870,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** Vite 构建配置
 
 **为什么需要：**
+
 - 配置 React 插件
 - 配置构建输出目录
 - Vite 需要的标准配置文件
@@ -824,6 +880,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** TypeScript 编译配置
 
 **为什么需要：**
+
 - 配置 TypeScript 编译选项
 - 定义模块解析规则
 - 启用类型检查
@@ -833,6 +890,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** Vitest 测试配置
 
 **为什么需要：**
+
 - 配置测试环境
 - 配置覆盖率报告
 - Vitest 需要的配置文件
@@ -842,6 +900,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** 项目配置和依赖管理
 
 **为什么需要：**
+
 - 定义项目名称、版本、脚本
 - 管理依赖包
 - npm/yarn 的标准配置文件
@@ -851,11 +910,13 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** ESLint 代码规范配置
 
 **为什么需要：**
+
 - 统一代码风格
 - 检查常见错误和不良实践
 - 配合 TypeScript 提供更严格的检查
 
 **关键配置：**
+
 ```javascript
 // 使用 TypeScript ESLint 推荐规则
 ...tseslint.configs.recommended
@@ -869,11 +930,13 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** Prettier 代码格式化配置
 
 **为什么需要：**
+
 - 自动格式化代码
 - 统一代码风格（缩进、引号、分号等）
 - 避免格式化相关的代码审查争议
 
 **关键配置：**
+
 ```json
 {
   "semi": true,              // 使用分号
@@ -888,6 +951,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **作用：** 编辑器通用配置
 
 **为什么需要：**
+
 - 跨编辑器统一配置（VSCode、WebStorm、Sublime 等）
 - 配置缩进、换行符等基础格式
 - 确保团队成员使用相同的编辑器设置
@@ -903,6 +967,7 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **步骤：**
 
 1. **在 DocumentModel 中添加方法**（`src/document/DocumentModel.ts`）
+
 ```typescript
 /**
  * 删除指定行
@@ -915,6 +980,7 @@ deleteLine(line: number): void {
 ```
 
 2. **在 useDocumentModel 中封装**（`src/frontend/hooks/useDocumentModel.ts`）
+
 ```typescript
 const deleteLine = useCallback(
   (line: number) => {
@@ -931,6 +997,7 @@ return {
 ```
 
 3. **在组件中使用**
+
 ```typescript
 function MyEditor() {
   const { deleteLine } = useDocumentModel();
@@ -950,6 +1017,7 @@ function MyEditor() {
 **思路：**
 
 1. **在 DocumentContext 中维护历史记录**
+
 ```typescript
 const [history, setHistory] = useState<string[]>([initialText]);
 const [historyIndex, setHistoryIndex] = useState(0);
@@ -974,6 +1042,7 @@ const redo = useCallback(() => {
 ```
 
 2. **每次修改时保存历史**
+
 ```typescript
 const saveToHistory = useCallback(() => {
   const newHistory = history.slice(0, historyIndex + 1);
@@ -990,6 +1059,7 @@ const saveToHistory = useCallback(() => {
 **思路：**
 
 1. **在 DocumentModel 中添加查找方法**
+
 ```typescript
 /**
  * 查找所有匹配位置
@@ -1014,6 +1084,7 @@ findAll(query: string): Range[] {
 ```
 
 2. **在组件中使用**
+
 ```typescript
 function SearchHighlight() {
   const { doc } = useDocumentModel();
@@ -1122,6 +1193,7 @@ setText(newText: string): void {
 ### 4. 断点调试
 
 在关键位置设置断点：
+
 - `forceUpdate()` 函数中
 - `insert()`、`replaceRange()` 等修改方法中
 - 组件的 `useEffect` 中
@@ -1135,6 +1207,7 @@ setText(newText: string): void {
 **问题：** 每次 `version` 变化，所有使用 `useDocumentModel` 的组件都会重新渲染
 
 **解决方案：**
+
 - 使用 `React.memo` 包裹不需要频繁更新的组件
 - 只订阅需要的数据（不要滥用 `useDocumentModel`）
 
@@ -1155,6 +1228,7 @@ const LineCounter = React.memo(function LineCounter() {
 ### 2. 大文件优化
 
 对于大文件（10000+ 行）：
+
 - 使用虚拟滚动（只渲染可见行）
 - 缓存计算结果（如行数、行偏移量）
 - 考虑使用 Web Worker 处理文本操作
@@ -1190,6 +1264,7 @@ setText(newText);
 **工具：** Vitest（无需 React）
 
 **示例：**
+
 ```typescript
 describe("DocumentModel", () => {
   it("should insert text at position", () => {
@@ -1201,6 +1276,7 @@ describe("DocumentModel", () => {
 ```
 
 **覆盖：**
+
 - 所有公共方法
 - 边界情况（空文档、单行文档、最后一行等）
 - 错误处理（行号越界等）
@@ -1212,6 +1288,7 @@ describe("DocumentModel", () => {
 **工具：** Vitest + @testing-library/react（可选）
 
 **策略：**
+
 - 模拟 Hook 的行为，测试底层 DocumentModel 操作
 - 测试 `forceUpdate` 是否被正确调用
 - 测试 `version` 是否正确更新
@@ -1223,6 +1300,7 @@ describe("DocumentModel", () => {
 **工具：** Playwright、Cypress 等
 
 **场景：**
+
 - 用户输入文本 → 验证文档内容
 - 用户点击按钮 → 验证文档修改
 - 用户搜索文本 → 验证高亮显示
@@ -1294,11 +1372,13 @@ const lineCount = useMemo(
 ### 4. 类型安全
 
 **TypeScript 的优势：**
+
 - 编译时发现错误
 - 自动补全和提示
 - 重构更安全
 
 **例子：**
+
 ```typescript
 // Position 和 Range 类型确保参数正确
 insert(pos: Position, text: string) => void
@@ -1312,6 +1392,7 @@ insert({ x: 0, y: 0 }, "Hello");  // ❌ 编译错误
 ### 5. 单一职责原则
 
 每个文件、每个函数都有明确的职责：
+
 - **DocumentModel**：管理文本数据
 - **DocumentContext**：管理 React 状态
 - **useDocumentModel**：封装便利 API

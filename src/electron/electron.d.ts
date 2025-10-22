@@ -1,5 +1,5 @@
 // Electron API 类型定义
-export interface ElectronAPI {
+export type ElectronAPI = {
   platform: NodeJS.Platform;
   versions: {
     node: string;
@@ -8,7 +8,7 @@ export interface ElectronAPI {
   };
   onMessage: (callback: (message: string) => void) => void;
   sendMessage: (message: string) => void;
-}
+};
 
 declare global {
   interface Window {

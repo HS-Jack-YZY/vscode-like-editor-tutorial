@@ -10,7 +10,7 @@ export default [
 
   // Ignore patterns (equivalent to ignorePatterns in legacy config)
   {
-    ignores: ["dist/**/*", "node_modules/**/*", "html/**/*", "coverage/**/*"],
+    ignores: ["dist/**/*", "dist-electron/**/*", "node_modules/**/*", "html/**/*", "coverage/**/*", "release/**/*"],
   },
 
   // Base ESLint recommended rules
@@ -31,6 +31,14 @@ export default [
     },
     rules: {
       "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+    },
+  },
+
+  // Allow interfaces in declaration files
+  {
+    files: ["**/*.d.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-definitions": "off",
     },
   },
 

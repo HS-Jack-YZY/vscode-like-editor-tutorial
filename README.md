@@ -21,11 +21,14 @@
 
 - `npm run dev:node` 运行 Node.js 示例（展示 DocumentModel 基础用法）
 - `npm run dev:web` 运行 Web 编辑器（Vite 开发服务器，访问 http://localhost:5173）
+- `npm run dev:electron` 运行 Electron 桌面应用（开发模式，自动重载）
 
 ### 构建
 
 - `npm run build:node` 编译 TypeScript 代码
 - `npm run build:web` 构建 Web 应用
+- `npm run build:electron` 打包 Electron 桌面应用（生成可分发的安装包）
+- `npm run build:electron:dir` 构建 Electron 应用目录（用于测试，不打包成安装包）
 
 ### 代码质量
 
@@ -101,6 +104,10 @@ npm run test:ui
 src/
 ├── document/
 │   └── DocumentModel.ts         # 文档模型核心类
+├── electron/
+│   ├── main.ts                  # Electron 主进程
+│   ├── preload.ts               # Electron 预加载脚本
+│   └── electron.d.ts            # Electron API 类型定义
 ├── frontend/
 │   ├── components/
 │   │   ├── Editor.tsx           # 主编辑器组件（带行号和高亮）
@@ -149,9 +156,56 @@ test/
 - `useDocument`：访问 Context 的基础 Hook
 - `useDocumentModel`：封装文档操作的高级 Hook，自动触发 UI 更新
 
+### Electron 桌面应用
+
+项目已集成 Electron，可以作为桌面应用运行：
+
+#### 架构说明
+
+- **主进程（Main Process）**: `src/electron/main.ts` - 负责窗口管理和系统级功能
+- **预加载脚本（Preload Script）**: `src/electron/preload.ts` - 在渲染进程和主进程之间提供安全的 IPC 通信
+- **渲染进程（Renderer Process）**: React 应用 - 与 Web 版本共享相同的代码
+
+#### 安全特性
+
+- 启用 `contextIsolation` 确保渲染进程无法直接访问 Node.js API
+- 禁用 `nodeIntegration` 防止 XSS 攻击
+- 通过 `contextBridge` 暴露安全的 API
+
+#### 开发模式
+
+```bash
+npm run dev:electron
+```
+
+开发模式下会：
+- 启动 Vite 开发服务器
+- 自动编译 Electron 主进程和预加载脚本
+- 启动 Electron 应用并加载开发服务器
+- 自动打开开发者工具
+- 支持热重载
+
+#### 打包分发
+
+```bash
+# 构建未打包的应用目录（用于测试）
+npm run build:electron:dir
+
+# 打包成可分发的安装包
+npm run build:electron
+```
+
+打包支持的平台：
+- **macOS**: DMG 和 ZIP
+- **Windows**: NSIS 安装器和便携版
+- **Linux**: AppImage 和 DEB 包
+
+生成的安装包位于 `release/` 目录。
+
 ## 学习阶段
 
 - ✅ 阶段 0：环境、仓库、Copilot 工作流
 - ✅ 阶段 1：TypeScript 核心与文档模型
 - ✅ 阶段 2：React 前端基础架构
-- 🚧 后续：Electron 桌面应用、Monaco 编辑器集成等
+- ✅ 阶段 3：Electron 桌面应用集成
+- 🚧 后续：Monaco 编辑器集成、文件系统操作等

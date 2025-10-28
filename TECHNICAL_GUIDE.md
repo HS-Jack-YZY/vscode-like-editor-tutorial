@@ -7,13 +7,40 @@
 1. [项目架构总览](#项目架构总览)
 2. [核心数据模型：DocumentModel](#核心数据模型documentmodel)
 3. [React 前端架构](#react-前端架构)
-4. [数据流详解](#数据流详解)
-5. [为什么需要这些层级？](#为什么需要这些层级)
-6. [文件结构说明](#文件结构说明)
+4. [Electron 桌面应用架构](#electron-桌面应用架构)
+5. [数据流详解](#数据流详解)
+6. [为什么需要这些层级？](#为什么需要这些层级)
+7. [文件结构说明](#文件结构说明)
 
 ---
 
 ## 项目架构总览
+
+### 多平台部署架构
+
+本项目采用统一代码库，支持三种部署方式：
+
+```
+┌───────────────────────────────────────────────────────────────┐
+│                      部署方式 (Deployment)                     │
+├─────────────────┬──────────────────┬─────────────────────────┤
+│   Web 应用      │  Electron 桌面    │    Node.js CLI         │
+│                 │                  │                         │
+│  Vite 服务器     │  主进程 + 渲染进程 │   命令行工具            │
+│  浏览器访问      │  原生窗口         │   演示 DocumentModel    │
+└─────────────────┴──────────────────┴─────────────────────────┘
+        ↓                  ↓                      ↓
+┌───────────────────────────────────────────────────────────────┐
+│                   共享核心代码                                  │
+└───────────────────────────────────────────────────────────────┘
+```
+
+**核心优势：**
+
+- **一次编写，多处运行**：相同的代码在浏览器、桌面端、命令行都能运行
+- **代码复用率高**：DocumentModel 和 React 组件在所有平台共享
+- **维护成本低**：修改一处，所有平台同步更新
+- **灵活部署**：根据需求选择最合适的部署方式
 
 ### 整体分层设计
 
@@ -501,6 +528,312 @@ const handleReplaceAll = () => {
 
 ---
 
+## Electron 桌面应用架构
+
+项目通过 Electron 支持桌面应用部署，采用标准的 Electron 多进程架构，确保安全性和性能。
+
+### Electron 进程模型
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Electron 架构                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌────────────┐    Context Bridge    ┌──────────────┐      │
+│  │  主进程     │ ←─────────────────→ │  渲染进程     │      │
+│  │ (main.ts)  │   安全的 IPC 通信     │ (React App)  │      │
+│  │            │                      │              │      │
+│  │ • 窗口管理  │    ┌─────────────┐   │ • UI 显示    │      │
+│  │ • 系统功能  │ ←─→│ preload.ts  │←─→│ • 用户交互   │      │
+│  │ • 原生 API │    │ (安全桥接)   │   │ • React 组件 │      │
+│  └────────────┘    └─────────────┘   └──────────────┘      │
+│        ↑                                      ↑             │
+│        │                                      │             │
+│   Node.js API                          Chromium 渲染        │
+│   系统资源访问                          Web 标准 API         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 为什么使用 Electron？
+
+**Electron 的优势：**
+
+1. **跨平台部署**：一套代码，支持 Windows、macOS、Linux
+2. **Web 技术栈**：使用熟悉的 HTML、CSS、JavaScript/TypeScript 和 React
+3. **原生能力**：访问文件系统、系统菜单、通知等原生功能
+4. **代码复用**：与 Web 版本共享 99% 的代码
+5. **成熟生态**：大量工具和库支持，如 VSCode、Slack、Discord 都使用 Electron
+
+**为什么适合本项目：**
+
+- 作为编辑器应用，需要文件系统访问能力
+- 需要原生窗口体验（标题栏、菜单栏、快捷键）
+- 可以在不联网的环境下使用
+- 便于与操作系统深度集成
+
+### 核心组件
+
+#### 1. 主进程 (Main Process)
+
+**文件位置：** `src/electron/main.ts`
+
+**职责：**
+
+```typescript
+// 主进程负责：
+1. 创建和管理应用窗口 (BrowserWindow)
+2. 处理应用生命周期 (app.on('ready'), app.on('quit'))
+3. 提供系统级功能（文件对话框、系统托盘、菜单栏）
+4. 与渲染进程通信 (IPC)
+```
+
+**关键代码：**
+
+```typescript
+function createWindow() {
+  win = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      contextIsolation: true,     // ✅ 启用上下文隔离
+      nodeIntegration: false,     // ✅ 禁用 Node.js 集成
+    },
+  });
+
+  // 开发环境：加载 Vite 开发服务器
+  if (!app.isPackaged && process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL);
+    win.webContents.openDevTools();
+  } else {
+    // 生产环境：加载打包后的文件
+    win.loadFile(path.join(process.env.DIST!, 'index.html'));
+  }
+}
+```
+
+**为什么这样设计？**
+
+- `contextIsolation: true` - 防止渲染进程直接访问 Node.js API，提高安全性
+- `nodeIntegration: false` - 防止 XSS 攻击，符合 Electron 安全最佳实践
+- 区分开发/生产环境 - 开发时使用热重载，生产时使用静态文件
+
+#### 2. 预加载脚本 (Preload Script)
+
+**文件位置：** `src/electron/preload.ts`
+
+**职责：**
+
+预加载脚本在渲染进程启动前执行，是主进程和渲染进程之间的安全桥梁。
+
+```typescript
+// 通过 contextBridge 暴露安全的 API
+contextBridge.exposeInMainWorld('electronAPI', {
+  platform: process.platform,
+  versions: {
+    node: process.versions.node,
+    chrome: process.versions.chrome,
+    electron: process.versions.electron,
+  },
+  onMessage: (callback: (message: string) => void) => {
+    ipcRenderer.on('message', (_event, message) => callback(message));
+  },
+  sendMessage: (message: string) => {
+    ipcRenderer.send('message', message);
+  },
+});
+```
+
+**为什么需要预加载脚本？**
+
+1. **安全隔离**：渲染进程无法直接访问 Node.js 和 Electron API
+2. **受控暴露**：只暴露必要的、经过验证的功能给渲染进程
+3. **类型安全**：通过 TypeScript 类型定义确保 API 使用正确
+
+**安全机制：**
+
+```
+渲染进程 (不信任)  →  预加载脚本 (受控)  →  主进程 (信任)
+      ↓                    ↓                    ↓
+  Web 代码             Context Bridge      Node.js API
+  React 组件          安全过滤              系统访问
+```
+
+#### 3. 渲染进程 (Renderer Process)
+
+**渲染进程就是 Web 应用：**
+
+- 运行 React 应用
+- 使用相同的 DocumentModel、Context、Hooks、Components
+- 通过 `window.electronAPI` 访问 Electron 功能
+- 与 Web 版本共享 99% 的代码
+
+**类型定义：** `src/electron/electron.d.ts`
+
+```typescript
+export type ElectronAPI = {
+  platform: NodeJS.Platform;
+  versions: {
+    node: string;
+    chrome: string;
+    electron: string;
+  };
+  onMessage: (callback: (message: string) => void) => void;
+  sendMessage: (message: string) => void;
+};
+
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}
+```
+
+**为什么需要类型定义？**
+
+- TypeScript 编译时检查 API 使用正确性
+- IDE 自动补全和类型提示
+- 防止运行时错误
+
+### 构建流程
+
+#### 开发模式
+
+```bash
+npm run dev:electron
+```
+
+**执行流程：**
+
+```
+1. Vite 启动开发服务器 (http://localhost:5173)
+   ↓
+2. vite-plugin-electron 编译 main.ts 和 preload.ts
+   ↓
+3. Electron 启动，主进程加载
+   ↓
+4. 创建窗口，加载 Vite 开发服务器
+   ↓
+5. 渲染进程运行 React 应用
+   ↓
+6. 支持热重载（修改代码自动刷新）
+```
+
+#### 生产构建
+
+```bash
+npm run build:electron
+```
+
+**执行流程：**
+
+```
+1. Vite 构建 Web 应用 (dist/)
+   ↓
+2. vite-plugin-electron 构建主进程和预加载脚本 (dist-electron/)
+   ↓
+3. electron-builder 打包应用
+   ↓
+4. 生成平台安装包 (release/)
+   - macOS: .dmg, .zip
+   - Windows: .exe (NSIS), .exe (Portable)
+   - Linux: .AppImage, .deb
+```
+
+### 安全最佳实践
+
+本项目遵循 [Electron 安全指南](https://www.electronjs.org/docs/latest/tutorial/security)：
+
+#### ✅ 已实施的安全措施
+
+1. **Context Isolation (上下文隔离)**
+   ```typescript
+   contextIsolation: true
+   ```
+   - 渲染进程与主进程完全隔离
+   - 防止原型链污染攻击
+
+2. **Disable Node Integration (禁用 Node.js 集成)**
+   ```typescript
+   nodeIntegration: false
+   ```
+   - 渲染进程无法直接使用 `require()` 等 Node.js API
+   - 防止恶意代码执行系统命令
+
+3. **Use Context Bridge (使用上下文桥接)**
+   ```typescript
+   contextBridge.exposeInMainWorld('electronAPI', { /* ... */ })
+   ```
+   - 仅暴露明确定义的安全 API
+   - 所有通信经过验证和过滤
+
+4. **HTTPS in Production (生产环境使用 HTTPS)**
+   - 如果加载远程内容，始终使用 HTTPS
+   - 本项目使用本地文件，无此风险
+
+#### 🔒 安全威胁防护
+
+| 威胁 | 防护措施 | 状态 |
+|------|---------|------|
+| XSS 攻击 | nodeIntegration: false | ✅ |
+| 原型链污染 | contextIsolation: true | ✅ |
+| 任意代码执行 | Context Bridge 白名单 | ✅ |
+| 中间人攻击 | 使用本地文件 | ✅ |
+| 权限提升 | 最小权限原则 | ✅ |
+
+### 与 Web 版本的差异
+
+#### 相同点 (99%)
+
+- DocumentModel 核心逻辑
+- React 组件和 UI
+- Context 和 Hooks
+- 样式和布局
+- 业务逻辑
+
+#### 不同点 (1%)
+
+| 特性 | Web 版本 | Electron 版本 |
+|------|---------|--------------|
+| 窗口管理 | 浏览器窗口 | BrowserWindow (原生窗口) |
+| 文件访问 | 浏览器限制 | Node.js fs 模块 (需实现) |
+| 系统集成 | 受限 | 菜单栏、托盘、通知等 |
+| 运行环境 | 浏览器 | Electron (Chromium + Node.js) |
+| 更新机制 | 刷新网页 | 应用自动更新 (需实现) |
+| 打包方式 | 静态资源 | 安装包 (.dmg, .exe, .AppImage) |
+
+### 未来扩展方向
+
+Electron 为项目提供了丰富的扩展可能：
+
+1. **文件系统操作**
+   - 打开/保存文件
+   - 文件夹浏览
+   - 最近文件列表
+
+2. **系统菜单**
+   - 应用菜单（File、Edit、View 等）
+   - 上下文菜单
+   - 快捷键绑定
+
+3. **原生功能**
+   - 系统托盘图标
+   - 桌面通知
+   - 拖拽文件支持
+
+4. **多窗口支持**
+   - 创建多个编辑器窗口
+   - 窗口间通信
+   - 分屏编辑
+
+5. **自动更新**
+   - electron-updater 集成
+   - 增量更新
+   - 版本检查
+
+---
+
 ## 数据流详解
 
 ### 完整的数据流路径
@@ -725,6 +1058,95 @@ insert({line: 0, column: 0}, "Hello");  // 自动 forceUpdate
 - 便于测试和移植
 - 可在非 React 环境使用
 
+### src/electron/main.ts
+
+**作用：** Electron 主进程入口
+
+**为什么需要：**
+
+- 创建和管理应用窗口
+- 处理应用生命周期（启动、退出、激活）
+- 区分开发环境和生产环境
+- 提供系统级功能（未来扩展：文件对话框、菜单栏等）
+
+**关键代码：**
+
+```typescript
+function createWindow() {
+  win = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.mjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  // 加载应用内容
+}
+```
+
+**安全配置：**
+
+- `contextIsolation: true` - 隔离渲染进程
+- `nodeIntegration: false` - 禁止直接访问 Node.js API
+
+### src/electron/preload.ts
+
+**作用：** 预加载脚本，安全桥梁
+
+**为什么需要：**
+
+- 在渲染进程启动前执行
+- 通过 `contextBridge` 安全地暴露 API 给渲染进程
+- 作为主进程和渲染进程的通信中介
+- 实现 IPC (进程间通信) 功能
+
+**提供的接口：**
+
+```typescript
+window.electronAPI = {
+  platform: process.platform,
+  versions: { node, chrome, electron },
+  onMessage: (callback) => { /* 接收主进程消息 */ },
+  sendMessage: (message) => { /* 发送消息到主进程 */ },
+};
+```
+
+**安全机制：**
+
+- 使用 `contextBridge` 白名单暴露 API
+- 不直接暴露 `ipcRenderer` 或 `require`
+- 所有通信经过验证和过滤
+
+### src/electron/electron.d.ts
+
+**作用：** Electron API 类型定义
+
+**为什么需要：**
+
+- 为 `window.electronAPI` 提供 TypeScript 类型
+- IDE 自动补全和类型检查
+- 编译时发现 API 使用错误
+- 提高代码可维护性
+
+**类型定义：**
+
+```typescript
+export type ElectronAPI = {
+  platform: NodeJS.Platform;
+  versions: { node: string; chrome: string; electron: string };
+  onMessage: (callback: (message: string) => void) => void;
+  sendMessage: (message: string) => void;
+};
+
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}
+```
+
 ### src/frontend/context/DocumentContext.tsx
 
 **作用：** 连接 React 和 DocumentModel
@@ -872,8 +1294,35 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 **为什么需要：**
 
 - 配置 React 插件
+- 配置 Electron 插件 (vite-plugin-electron)
 - 配置构建输出目录
 - Vite 需要的标准配置文件
+
+**Electron 集成：**
+
+```typescript
+import electron from "vite-plugin-electron/simple";
+
+export default defineConfig({
+  plugins: [
+    react(),
+    electron({
+      main: {
+        entry: "src/electron/main.ts",  // 主进程入口
+      },
+      preload: {
+        input: "src/electron/preload.ts",  // 预加载脚本
+      },
+    }),
+  ],
+});
+```
+
+**作用说明：**
+
+- `vite-plugin-electron` 自动编译主进程和预加载脚本
+- 开发模式：监听文件变化，自动重启 Electron
+- 生产模式：构建成可执行文件
 
 ### tsconfig.json
 
@@ -904,6 +1353,46 @@ import { useDocumentModel } from "../hooks/useDocumentModel.js";
 - 定义项目名称、版本、脚本
 - 管理依赖包
 - npm/yarn 的标准配置文件
+
+**关键脚本：**
+
+```json
+{
+  "scripts": {
+    "dev:web": "vite",                    // Web 开发服务器
+    "dev:electron": "vite",               // Electron 开发模式
+    "dev:node": "tsx src/index.ts",       // Node.js 演示
+    "build:web": "vite build",            // Web 应用构建
+    "build:electron": "vite build && electron-builder",  // Electron 打包
+    "build:electron:dir": "vite build && electron-builder --dir"  // 未打包构建
+  }
+}
+```
+
+**Electron 配置：**
+
+```json
+{
+  "main": "dist-electron/main.js",  // Electron 入口
+  "build": {
+    "appId": "com.vscode-like-editor.app",
+    "productName": "VSCode-like Editor",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "dist-electron/**/*"],
+    "mac": { "target": ["dmg", "zip"] },
+    "win": { "target": ["nsis", "portable"] },
+    "linux": { "target": ["AppImage", "deb"] }
+  }
+}
+```
+
+**依赖说明：**
+
+- `electron` - Electron 运行时
+- `electron-builder` - 应用打包工具
+- `vite-plugin-electron` - Vite Electron 插件
+- `react`, `react-dom` - React 框架
+- `typescript` - TypeScript 编译器
 
 ### eslint.config.js
 
@@ -1156,6 +1645,80 @@ function App() {
 
 每个 `DocumentProvider` 创建独立的 `DocumentModel` 实例，互不干扰。
 
+### 场景 4：在 Electron 中添加文件保存功能
+
+**需求：** 添加"保存文件"功能，将文档内容保存到磁盘
+
+**步骤：**
+
+1. **在主进程添加 IPC 处理器**（`src/electron/main.ts`）
+
+```typescript
+import { ipcMain, dialog } from 'electron';
+import fs from 'fs';
+
+// 处理保存文件请求
+ipcMain.handle('save-file', async (event, content: string) => {
+  const { filePath } = await dialog.showSaveDialog({
+    title: '保存文件',
+    filters: [{ name: 'Text Files', extensions: ['txt'] }],
+  });
+  
+  if (filePath) {
+    fs.writeFileSync(filePath, content, 'utf-8');
+    return { success: true, filePath };
+  }
+  return { success: false };
+});
+```
+
+2. **在预加载脚本暴露 API**（`src/electron/preload.ts`）
+
+```typescript
+contextBridge.exposeInMainWorld('electronAPI', {
+  // ... 其他 API
+  saveFile: (content: string) => ipcRenderer.invoke('save-file', content),
+});
+```
+
+3. **更新类型定义**（`src/electron/electron.d.ts`）
+
+```typescript
+export type ElectronAPI = {
+  // ... 其他属性
+  saveFile: (content: string) => Promise<{ success: boolean; filePath?: string }>;
+};
+```
+
+4. **在 React 组件中使用**
+
+```typescript
+function Editor() {
+  const { getText } = useDocumentModel();
+  
+  const handleSave = async () => {
+    if (window.electronAPI) {
+      const result = await window.electronAPI.saveFile(getText());
+      if (result.success) {
+        alert(`文件已保存到: ${result.filePath}`);
+      }
+    } else {
+      // Web 版本的备用方案
+      alert('Web 版本不支持文件保存');
+    }
+  };
+  
+  return <button onClick={handleSave}>保存</button>;
+}
+```
+
+**关键点：**
+
+- 主进程处理文件系统操作（有权限）
+- 预加载脚本作为安全桥梁
+- 渲染进程通过 IPC 请求功能
+- 检测 `window.electronAPI` 实现跨平台兼容
+
 ---
 
 ## 调试技巧
@@ -1189,6 +1752,67 @@ setText(newText: string): void {
 - 安装 React DevTools 浏览器扩展
 - 查看组件树和 Hooks 状态
 - 追踪 `version`、`doc` 的变化
+
+### 4. Electron 开发者工具
+
+**Web 开发者工具：**
+
+在主进程中启用：
+
+```typescript
+if (!app.isPackaged) {
+  win.webContents.openDevTools();  // 自动打开开发者工具
+}
+```
+
+功能：
+- Console 查看日志
+- Network 监控请求
+- Sources 调试 React 代码
+- React DevTools 查看组件
+
+**主进程调试：**
+
+使用 VSCode 调试配置（`.vscode/launch.json`）：
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Electron: Main",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+      "args": ["."],
+      "outputCapture": "std"
+    }
+  ]
+}
+```
+
+**IPC 通信调试：**
+
+在预加载脚本中添加日志：
+
+```typescript
+contextBridge.exposeInMainWorld('electronAPI', {
+  saveFile: (content: string) => {
+    console.log('[Preload] saveFile called, content length:', content.length);
+    return ipcRenderer.invoke('save-file', content);
+  },
+});
+```
+
+在主进程中添加日志：
+
+```typescript
+ipcMain.handle('save-file', async (event, content: string) => {
+  console.log('[Main] save-file received, content length:', content.length);
+  // ... 处理逻辑
+});
+```
 
 ### 4. 断点调试
 
@@ -1448,21 +2072,38 @@ insert({ x: 0, y: 0 }, "Hello");  // ❌ 编译错误
 2. **关注点分离**：业务逻辑与 UI 逻辑分离
 3. **单一职责**：每个文件、每个函数只做一件事
 4. **类型安全**：使用 TypeScript 确保编译时类型检查
+5. **多平台支持**：一次编写，Web、Electron、CLI 多处运行
 
 ### 为什么这样设计？
 
 - **易于测试**：核心逻辑可以独立测试
-- **易于复用**：DocumentModel 可在多个环境使用
+- **易于复用**：DocumentModel 可在多个环境使用（Web、Electron、Node.js）
 - **易于维护**：职责清晰，修改影响范围小
 - **易于扩展**：添加新功能不影响现有代码
 - **易于理解**：层次分明，逻辑清晰
+- **跨平台部署**：相同代码在不同平台运行
 
 ### 关键技术点
 
+**核心架构：**
 - **DocumentModel**：纯 TypeScript 核心数据模型
 - **Context**：React 全局状态管理
 - **version + forceUpdate**：强制更新机制
 - **useCallback / useMemo**：性能优化
 - **自定义 Hook**：封装业务逻辑
 
-这种架构是现代 Web 应用的标准做法，理解它将帮助你构建更复杂的应用。
+**Electron 集成：**
+- **主进程**：窗口管理、系统功能、文件系统访问
+- **预加载脚本**：安全的 IPC 通信桥梁
+- **Context Isolation**：渲染进程安全隔离
+- **跨平台打包**：支持 macOS、Windows、Linux
+
+### 项目特色
+
+1. **统一代码库**：Web 和 Electron 共享 99% 代码
+2. **安全优先**：遵循 Electron 安全最佳实践
+3. **开发友好**：热重载、TypeScript、完整类型定义
+4. **灵活部署**：根据需求选择 Web 或桌面部署
+5. **可扩展性**：预留文件系统、菜单栏等扩展接口
+
+这种架构是现代 Web 应用和桌面应用的标准做法，理解它将帮助你构建更复杂的跨平台应用。
